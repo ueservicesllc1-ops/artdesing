@@ -85,14 +85,24 @@ export const getProductsByCategory = async (category, pageSize = 20, lastDoc = n
 
 // Get all products
 export const getAllProducts = async (pageSize = 50) => {
-    const q = query(
-        collection(db, COLLECTION),
-        orderBy("createdAt", "desc"),
-        limit(pageSize)
-    );
+    try {
+        const q = query(
+            collection(db, COLLECTION),
+            orderBy("createdAt", "desc"),
+            limit(pageSize)
+        );
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        if (error.code === 'failed-precondition') {
+            console.warn("Falta índice para getAllProducts. Cargando sin orden.");
+            const q = query(collection(db, COLLECTION), limit(pageSize));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+        throw error;
+    }
 };
 
 // Search products by name/tags
