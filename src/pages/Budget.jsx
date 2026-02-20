@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calculator, Zap, Package, Clock, DollarSign, Globe, Trash2, Plus, Info, Settings } from 'lucide-react';
+import { Calculator, Zap, Package, Clock, DollarSign, Globe, Trash2, Plus, Info, Settings, Palette } from 'lucide-react';
 
 const ELECTRICITY_RATES = [
     { country: 'Estados Unidos', code: 'USA', rate: 0.18, currency: 'USD' },
@@ -27,6 +27,23 @@ const Budget = () => {
     const [laborPrice, setLaborPrice] = useState(5);
     const [printerWattage, setPrinterWattage] = useState(200);
 
+    // Laser Cutting States
+    const [matPrice, setMatPrice] = useState(50);
+    const [sheetW, setSheetW] = useState(120);
+    const [sheetH, setSheetH] = useState(90);
+    const [pieceW, setPieceW] = useState(20);
+    const [pieceH, setPieceH] = useState(20);
+    const [laserTime, setLaserTime] = useState(15);
+    const [laserPower, setLaserPower] = useState(80);
+    const [laserHourly, setLaserHourly] = useState(10);
+
+    // Sublimation States
+    const [blankPrice, setBlankPrice] = useState(2.5);
+    const [paperPrice, setPaperPrice] = useState(0.5);
+    const [pressTime, setPressTime] = useState(180);
+    const [pressPower, setPressPower] = useState(1500);
+    const [failMargin, setFailMargin] = useState(10);
+
     // Results
     const [results, setResults] = useState({
         material: 0,
@@ -34,10 +51,6 @@ const Budget = () => {
         energy: 0,
         total: 0
     });
-
-    useEffect(() => {
-        calculate3D();
-    }, [filamentPrice, weight, hours, minutes, laborPrice, printerWattage, country, customRate]);
 
     const calculate3D = () => {
         const totalTimeHours = hours + (minutes / 60);
@@ -54,6 +67,57 @@ const Budget = () => {
             total: materialCost + laborTotal + energyTotal
         });
     };
+
+    const calculateLaser = () => {
+        const sheetArea = sheetW * sheetH;
+        const pieceArea = pieceW * pieceH;
+        const materialCost = sheetArea > 0 ? (matPrice / sheetArea) * pieceArea : 0;
+
+        const timeHours = laserTime / 60;
+        const machineWear = timeHours * laserHourly;
+        const laborTotal = timeHours * laborPrice;
+
+        const rate = country.code === 'OTHER' ? customRate : country.rate;
+        const energyTotal = timeHours * (laserPower / 1000) * rate;
+
+        setResults({
+            material: materialCost + machineWear,
+            labor: laborTotal,
+            energy: energyTotal,
+            total: materialCost + machineWear + laborTotal + energyTotal
+        });
+    };
+
+    const calculateSublimation = () => {
+        const materialCost = blankPrice + paperPrice;
+        const timeHours = pressTime / 3600;
+        // Se estima tiempo de preparación de 2 mins por unidad más el tiempo de prensa
+        const laborTotal = (laborPrice / 60) * ((pressTime / 60) + 2);
+
+        const rate = country.code === 'OTHER' ? customRate : country.rate;
+        const energyTotal = timeHours * (pressPower / 1000) * rate;
+
+        const subtotal = materialCost + laborTotal + energyTotal;
+        const marginVal = subtotal * (failMargin / 100);
+
+        setResults({
+            material: materialCost + marginVal,
+            labor: laborTotal,
+            energy: energyTotal,
+            total: subtotal + marginVal
+        });
+    };
+
+    useEffect(() => {
+        if (activeTab === '3d') calculate3D();
+        if (activeTab === 'laser') calculateLaser();
+        if (activeTab === 'sublimation') calculateSublimation();
+    }, [
+        filamentPrice, weight, hours, minutes, laborPrice, printerWattage,
+        matPrice, sheetW, sheetH, pieceW, pieceH, laserTime, laserPower, laserHourly,
+        blankPrice, paperPrice, pressTime, pressPower, failMargin,
+        country, customRate, activeTab
+    ]);
 
     const formatCurrency = (val) => {
         return new Intl.NumberFormat('en-US', {
@@ -88,18 +152,17 @@ const Budget = () => {
                         className={`budget-tab ${activeTab === 'laser' ? 'active' : ''}`}
                         onClick={() => setActiveTab('laser')}
                     >
-                        <Package size={18} /> Corte Láser
+                        <Settings size={18} /> Corte Láser
                     </button>
                     <button
                         className={`budget-tab ${activeTab === 'sublimation' ? 'active' : ''}`}
                         onClick={() => setActiveTab('sublimation')}
                     >
-                        <Plus size={18} /> Sublimación
+                        <Palette size={18} /> Sublimación
                     </button>
                 </div>
 
                 <div className="budget-grid">
-                    {/* INPUT SECTION */}
                     <div className="budget-inputs">
                         <div className="admin-card" style={{ padding: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
@@ -146,10 +209,7 @@ const Budget = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div className="form-group">
                                         <label>Costo Filamento (1kg)</label>
-                                        <div style={{ position: 'relative' }}>
-                                            <DollarSign size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
-                                            <input type="number" className="form-input" style={{ paddingLeft: '2rem' }} value={filamentPrice} onChange={(e) => setFilamentPrice(parseFloat(e.target.value))} />
-                                        </div>
+                                        <input type="number" className="form-input" value={filamentPrice} onChange={(e) => setFilamentPrice(parseFloat(e.target.value))} />
                                     </div>
                                     <div className="form-group">
                                         <label>Peso de Obra (gramos)</label>
@@ -181,13 +241,93 @@ const Budget = () => {
                             </div>
                         )}
 
-                        {(activeTab === 'laser' || activeTab === 'sublimation') && (
-                            <div className="admin-card fade-in" style={{ padding: '3rem 1.5rem', marginTop: '1.5rem', textAlign: 'center' }}>
-                                <Clock size={40} style={{ marginBottom: '1rem', opacity: 0.2 }} />
-                                <h3 style={{ marginBottom: '0.5rem' }}>Próximamente</h3>
-                                <p style={{ color: 'var(--text-2)', fontSize: '0.9rem' }}>
-                                    Estamos perfeccionando los algoritmos de cálculo para {activeTab === 'laser' ? 'Corte Láser' : 'Sublimación'}.
-                                </p>
+                        {activeTab === 'laser' && (
+                            <div className="admin-card fade-in" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                    <Zap size={20} style={{ color: 'var(--accent)' }} />
+                                    <h3 style={{ fontSize: '1.1rem' }}>Parámetros de Corte Láser</h3>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Costo Plancha</label>
+                                        <input type="number" className="form-input" value={matPrice} onChange={(e) => setMatPrice(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Tamaño Plancha (cm)</label>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input type="number" className="form-input" placeholder="W" value={sheetW} onChange={(e) => setSheetW(parseFloat(e.target.value))} />
+                                            <input type="number" className="form-input" placeholder="H" value={sheetH} onChange={(e) => setSheetH(parseFloat(e.target.value))} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1rem', marginTop: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Minutos de Corte</label>
+                                        <input type="number" className="form-input" value={laserTime} onChange={(e) => setLaserTime(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Tamaño Pieza (cm)</label>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input type="number" className="form-input" placeholder="W" value={pieceW} onChange={(e) => setPieceW(parseFloat(e.target.value))} />
+                                            <input type="number" className="form-input" placeholder="H" value={pieceH} onChange={(e) => setPieceH(parseFloat(e.target.value))} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Mantenimiento ($/hr)</label>
+                                        <input type="number" className="form-input" value={laserHourly} onChange={(e) => setLaserHourly(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Watts Máquina</label>
+                                        <input type="number" className="form-input" value={laserPower} onChange={(e) => setLaserPower(parseFloat(e.target.value))} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'sublimation' && (
+                            <div className="admin-card fade-in" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                    <Palette size={20} style={{ color: 'var(--accent)' }} />
+                                    <h3 style={{ fontSize: '1.1rem' }}>Parámetros de Sublimación</h3>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Costo Insumo (Blanco)</label>
+                                        <input type="number" className="form-input" value={blankPrice} onChange={(e) => setBlankPrice(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Papel y Tinta</label>
+                                        <input type="number" className="form-input" value={paperPrice} onChange={(e) => setPaperPrice(parseFloat(e.target.value))} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Segundos de Prensa</label>
+                                        <input type="number" className="form-input" value={pressTime} onChange={(e) => setPressTime(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Watts Prensa</label>
+                                        <input type="number" className="form-input" value={pressPower} onChange={(e) => setPressPower(parseFloat(e.target.value))} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Margen Error (%)</label>
+                                        <input type="number" className="form-input" value={failMargin} onChange={(e) => setFailMargin(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Mano Obra ($/hr)</label>
+                                        <input type="number" className="form-input" value={laborPrice} onChange={(e) => setLaborPrice(parseFloat(e.target.value))} />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
