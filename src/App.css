@@ -1,0 +1,4 @@
+/* App-level styles - minimal since index.css handles the design system */
+#root {
+  min-height: 100vh;
+}
