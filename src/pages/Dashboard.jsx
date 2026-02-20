@@ -19,10 +19,23 @@ const Dashboard = () => {
                         {isSubscribed ? 'Premium' : 'Gratis'}
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-label">Descargas</div>
-                    <div className="stat-value">{userProfile?.downloads || 0}</div>
-                </div>
+
+                {!isSubscribed ? (
+                    <div className="stat-card">
+                        <div className="stat-label">Descargas hoy</div>
+                        <div className="stat-value">
+                            <span style={{ color: (userProfile?.dailyDownloads || 0) >= 2 ? 'var(--danger)' : 'var(--accent)' }}>
+                                {userProfile?.dailyDownloads || 0}
+                            </span> / 2
+                        </div>
+                    </div>
+                ) : (
+                    <div className="stat-card">
+                        <div className="stat-label">Descargas totales</div>
+                        <div className="stat-value">{userProfile?.totalDownloads || 0}</div>
+                    </div>
+                )}
+
                 <div className="stat-card">
                     <div className="stat-label">Miembro desde</div>
                     <div className="stat-value" style={{ fontSize: '1rem' }}>

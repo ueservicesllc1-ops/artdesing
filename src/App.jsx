@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Subscription from './pages/Subscription';
 import Admin from './pages/Admin';
+import Budget from './pages/Budget';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/budget" element={<Budget />} />
             </Routes>
           </main>
           <Footer />

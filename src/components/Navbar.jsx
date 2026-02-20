@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { logoutUser } from '../services/authService';
-import { Zap, Box, Palette, Menu, X, LogOut, Shield, LayoutDashboard, Crown } from 'lucide-react';
+import { Zap, Box, Palette, Menu, X, LogOut, Shield, LayoutDashboard, Crown, Calculator } from 'lucide-react';
 
 const Navbar = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -39,6 +39,9 @@ const Navbar = () => {
                     </Link>
                     <Link to="/gallery/sublimation" className={isActive('/gallery/sublimation')} onClick={() => setMenuOpen(false)}>
                         <Palette size={15} /> Sublimacion
+                    </Link>
+                    <Link to="/budget" className={isActive('/budget')} onClick={() => setMenuOpen(false)}>
+                        <Calculator size={15} /> Presupuesto
                     </Link>
 
                     {!isSubscribed && (

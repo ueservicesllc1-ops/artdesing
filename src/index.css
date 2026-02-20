@@ -2373,3 +2373,122 @@ select.form-input {
     flex: 0 0 260px;
   }
 }
+
+/* ─── Budget Calculator ────────────────────────────────────────── */
+.budget-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 4rem;
+}
+
+.budget-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  background: var(--bg-1);
+  padding: 0.5rem;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--border);
+  width: fit-content;
+}
+
+.budget-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all var(--duration-normal) var(--ease-out);
+  cursor: pointer;
+  border: none;
+}
+
+.budget-tab:hover {
+  color: var(--text-0);
+  background: var(--bg-2);
+}
+
+.budget-tab.active {
+  background: var(--bg-3);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  color: var(--text-1);
+  font-size: 0.95rem;
+}
+
+.price-val {
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.summary-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 1.5rem 0;
+}
+
+.summary-total {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-total span {
+  color: var(--text-2);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.total-val {
+  font-size: 2.5rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.info-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-2);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--border);
+}
+
+.info-badge p {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  margin: 0;
+}
+
+.sticky {
+  position: sticky;
+  top: 100px;
+}
