@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Zap, Box, Palette, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getAllProducts } from '../services/productService';
 
 const SLIDES = [
     {
@@ -46,6 +47,8 @@ const Home = () => {
     const { isAuthenticated } = useAuth();
     const [current, setCurrent] = useState(0);
     const [transitioning, setTransitioning] = useState(false);
+    const [showcaseProducts, setShowcaseProducts] = useState([]);
+    const [loadingShowcase, setLoadingShowcase] = useState(true);
 
     const goTo = useCallback((index) => {
         if (transitioning) return;
@@ -64,6 +67,23 @@ const Home = () => {
         return () => clearInterval(interval);
     }, [next]);
 
+    // Fetch random products for showcase
+    useEffect(() => {
+        const fetchShowcase = async () => {
+            try {
+                const prods = await getAllProducts(12);
+                // Shuffle them
+                const shuffled = [...prods].sort(() => 0.5 - Math.random());
+                setShowcaseProducts(shuffled);
+            } catch (error) {
+                console.error('Error fetching showcase:', error);
+            } finally {
+                setLoadingShowcase(false);
+            }
+        };
+        fetchShowcase();
+    }, []);
+
     const slide = SLIDES[current];
     const SlideIcon = slide.icon;
 
@@ -71,29 +91,20 @@ const Home = () => {
         <div className="fade-in">
             {/* Hero Carousel */}
             <section className="hero-banner" style={{ background: slide.bg }}>
-                {/* Ambient glow */}
                 <div className="hero-glow" style={{ background: `radial-gradient(ellipse 60% 80% at 70% 50%, ${slide.accent}, transparent)` }}></div>
                 <div className="hero-glow-2" style={{ background: `radial-gradient(ellipse 40% 60% at 30% 80%, ${slide.accent}, transparent)` }}></div>
-
-                {/* Grid overlay */}
                 <div className="hero-grid"></div>
-
-                {/* Large background icon */}
                 <div className="hero-bg-icon">
                     <SlideIcon size={320} strokeWidth={0.3} style={{ color: slide.color }} />
                 </div>
 
-                {/* Content */}
                 <div className={`hero-slide-content ${transitioning ? 'out' : 'in'}`}>
                     <div className="hero-slide-label" style={{ color: slide.color, borderColor: `${slide.color}30` }}>
                         <SlideIcon size={14} />
                         {slide.title}
                     </div>
-
                     <h1>{slide.headline}</h1>
-
                     <p>{slide.desc}</p>
-
                     <div className="hero-slide-actions">
                         <Link to={slide.link}>
                             <button className="btn btn-accent btn-lg">
@@ -102,15 +113,12 @@ const Home = () => {
                         </Link>
                         {!isAuthenticated && (
                             <Link to="/register">
-                                <button className="btn btn-ghost btn-lg">
-                                    Crear cuenta
-                                </button>
+                                <button className="btn btn-ghost btn-lg">Crear cuenta</button>
                             </Link>
                         )}
                     </div>
                 </div>
 
-                {/* Navigation */}
                 <div className="hero-nav">
                     <button className="hero-nav-btn" onClick={prev}><ChevronLeft size={18} /></button>
                     <div className="hero-dots">
@@ -126,7 +134,6 @@ const Home = () => {
                     <button className="hero-nav-btn" onClick={next}><ChevronRight size={18} /></button>
                 </div>
 
-                {/* Slide counter */}
                 <div className="hero-counter">
                     <span style={{ color: slide.color }}>{String(current + 1).padStart(2, '0')}</span>
                     <span className="hero-counter-sep">/</span>
@@ -134,8 +141,40 @@ const Home = () => {
                 </div>
             </section>
 
+            {/* Showcase Section */}
+            <section className="showcase-section" style={{ paddingTop: '1rem' }}>
+                <div className="showcase-container">
+                    <div className="showcase-track-wrapper">
+                        <div className="showcase-track">
+                            {loadingShowcase ? (
+                                Array(6).fill(0).map((_, i) => (
+                                    <div key={i} className="showcase-skeleton"></div>
+                                ))
+                            ) : (
+                                showcaseProducts.map(product => (
+                                    <Link key={product.id} to={`/product/${product.id}`} className="showcase-item">
+                                        <div className="showcase-image-wrapper">
+                                            <img src={product.imageUrl} alt={product.name} />
+                                            <div className="showcase-overlay">
+                                                <div className="showcase-badge">{product.fileType}</div>
+                                                <span className="showcase-view-btn">Ver Detalle <ArrowUpRight size={14} /></span>
+                                            </div>
+                                        </div>
+                                        <div className="showcase-info">
+                                            <h4>{product.name}</h4>
+                                            <span>{product.category === 'laser' ? 'Corte Laser' : product.category === 'printing3d' ? 'Impresión 3D' : 'Sublimación'}</span>
+                                        </div>
+                                    </Link>
+                                ))
+                            )}
+                            {/* Duplicate items for infinite scroll effect or just enough items */}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* Categories */}
-            <section className="page-content">
+            <section className="page-content" style={{ paddingTop: '2rem' }}>
                 <div className="section-header">
                     <h2>Categorias</h2>
                     <p>Colecciones organizadas por tipo de trabajo</p>

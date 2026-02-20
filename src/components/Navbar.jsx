@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { logoutUser } from '../services/authService';
-import { Zap, Box, Palette, Menu, X, LogOut, Shield, LayoutDashboard } from 'lucide-react';
+import { Zap, Box, Palette, Menu, X, LogOut, Shield, LayoutDashboard, Crown } from 'lucide-react';
 
 const Navbar = () => {
     const [menuOpen, setMenuOpen] = useState(false);
-    const { isAdmin, isAuthenticated } = useAuth();
+    const { isAdmin, isAuthenticated, isSubscribed } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -41,6 +41,14 @@ const Navbar = () => {
                         <Palette size={15} /> Sublimacion
                     </Link>
 
+                    {!isSubscribed && (
+                        <Link to="/subscription" onClick={() => setMenuOpen(false)}>
+                            <button className="btn btn-sm btn-accent" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Crown size={15} /> Suscribirse
+                            </button>
+                        </Link>
+                    )}
+
                     {isAuthenticated ? (
                         <>
                             <Link to="/dashboard" className={isActive('/dashboard')} onClick={() => setMenuOpen(false)}>
@@ -56,14 +64,9 @@ const Navbar = () => {
                             </button>
                         </>
                     ) : (
-                        <>
-                            <Link to="/login" className={isActive('/login')} onClick={() => setMenuOpen(false)}>
-                                Iniciar sesion
-                            </Link>
-                            <Link to="/register" onClick={() => setMenuOpen(false)} style={{ marginLeft: '0.25rem' }}>
-                                <button className="btn btn-sm btn-accent">Registrarse</button>
-                            </Link>
-                        </>
+                        <Link to="/login" onClick={() => setMenuOpen(false)} style={{ marginLeft: '0.25rem' }}>
+                            <button className="btn btn-sm btn-ghost">Login / Registrar</button>
+                        </Link>
                     )}
                 </div>
             </div>

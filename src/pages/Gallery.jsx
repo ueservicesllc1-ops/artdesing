@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { CATEGORIES } from '../config/backblaze';
 import { getAllProducts, getProductsByCategory, searchProducts } from '../services/productService';
 import ProductCard from '../components/ProductCard';
 import { Search } from 'lucide-react';
 
 const Gallery = () => {
-    const { category } = useParams();
+    const { category: urlCategory } = useParams();
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [activeFilter, setActiveFilter] = useState(category || 'all');
+    const [activeFilter, setActiveFilter] = useState(urlCategory || 'all');
 
+    // Sync state with URL parameter
     useEffect(() => {
-        if (category) setActiveFilter(category);
-    }, [category]);
+        setActiveFilter(urlCategory || 'all');
+    }, [urlCategory]);
 
     useEffect(() => {
         const load = async () => {
@@ -25,14 +27,17 @@ const Gallery = () => {
                     data = await searchProducts(search, activeFilter !== 'all' ? activeFilter : null);
                     setProducts(data || []);
                 } else if (activeFilter !== 'all') {
-                    data = await getProductsByCategory(activeFilter, 50);
-                    setProducts(data.products || []);
+                    // console.log("Fetching by category:", activeFilter);
+                    const result = await getProductsByCategory(activeFilter, 50);
+                    setProducts(result.products || []);
                 } else {
-                    data = await getAllProducts(50);
-                    setProducts(data || []);
+                    // console.log("Fetching all products");
+                    const result = await getAllProducts(50);
+                    setProducts(result || []);
                 }
             } catch (err) {
-                console.error(err);
+                console.error("Gallery Load Error:", err);
+                setProducts([]);
             } finally {
                 setLoading(false);
             }
@@ -40,13 +45,21 @@ const Gallery = () => {
         load();
     }, [activeFilter, search]);
 
+    const handleFilterChange = (key) => {
+        if (key === 'all') {
+            navigate('/gallery');
+        } else {
+            navigate(`/gallery/${key}`);
+        }
+    };
+
     const currentCat = CATEGORIES[activeFilter];
 
     return (
         <div className="page-content fade-in">
             <div className="section-header">
-                <h2>{currentCat ? currentCat.name : 'Galeria'}</h2>
-                <p>{currentCat ? currentCat.description : 'Todos los archivos de diseno disponibles'}</p>
+                <h2>{currentCat ? currentCat.name : 'Galería Completa'}</h2>
+                <p>{currentCat ? currentCat.description : 'Todos los archivos de diseño disponibles en la plataforma'}</p>
             </div>
 
             <div className="filter-bar">
@@ -54,7 +67,7 @@ const Gallery = () => {
                     <Search size={16} className="search-icon" />
                     <input
                         type="text"
-                        placeholder="Buscar disenos..."
+                        placeholder="Buscar diseños..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -62,7 +75,7 @@ const Gallery = () => {
                 <div className="filter-pills">
                     <button
                         className={`filter-pill ${activeFilter === 'all' ? 'active' : ''}`}
-                        onClick={() => setActiveFilter('all')}
+                        onClick={() => handleFilterChange('all')}
                     >
                         Todos
                     </button>
@@ -70,7 +83,7 @@ const Gallery = () => {
                         <button
                             key={key}
                             className={`filter-pill ${activeFilter === key ? 'active' : ''}`}
-                            onClick={() => setActiveFilter(key)}
+                            onClick={() => handleFilterChange(key)}
                         >
                             {cat.name}
                         </button>
@@ -82,14 +95,22 @@ const Gallery = () => {
                 <div className="loading-container">
                     <div>
                         <div className="spinner"></div>
-                        <p className="loading-text">Cargando disenos...</p>
+                        <p className="loading-text">Cargando diseños...</p>
                     </div>
                 </div>
             ) : products.length === 0 ? (
-                <div className="empty-state">
-                    <h3>Sin resultados</h3>
-                    <p>No se encontraron disenos para
-                        {search ? ` "${search}"` : ' esta categoria'}. Intenta ajustar tu busqueda.</p>
+                <div className="empty-state" style={{ padding: '4rem 1rem' }}>
+                    <h3>No hay diseños todavía</h3>
+                    <p style={{ maxWidth: '400px', margin: '1rem auto' }}>
+                        {search
+                            ? `No encontramos nada para "${search}" en esta categoría.`
+                            : `Aún no se han subido archivos a la categoría ${currentCat ? currentCat.name : 'seleccionada'}.`}
+                    </p>
+                    {activeFilter !== 'all' && (
+                        <button className="btn btn-ghost mt-2" onClick={() => handleFilterChange('all')}>
+                            Ver todos los diseños
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="product-grid">

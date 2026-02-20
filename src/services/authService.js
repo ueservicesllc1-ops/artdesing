@@ -8,10 +8,29 @@ import {
     signInWithPopup,
     sendPasswordResetEmail
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 
 const googleProvider = new GoogleAuthProvider();
+
+// Update user download count and date
+export const updateUserDownloadStats = async (uid, currentStats) => {
+    const today = new Date().toISOString().split('T')[0];
+    const userRef = doc(db, "users", uid);
+
+    let newCount = 1;
+    if (currentStats?.lastDownloadDate === today) {
+        newCount = (currentStats.dailyDownloads || 0) + 1;
+    }
+
+    await updateDoc(userRef, {
+        dailyDownloads: newCount,
+        lastDownloadDate: today,
+        totalDownloads: (currentStats?.totalDownloads || 0) + 1
+    });
+
+    return { dailyDownloads: newCount, lastDownloadDate: today };
+};
 
 // Register new user
 export const registerUser = async (email, password, displayName) => {
@@ -28,7 +47,9 @@ export const registerUser = async (email, password, displayName) => {
         subscriptionStatus: "free",
         subscriptionEnd: null,
         createdAt: serverTimestamp(),
-        downloads: 0
+        dailyDownloads: 0,
+        lastDownloadDate: null,
+        totalDownloads: 0
     });
 
     return user;
@@ -55,7 +76,9 @@ export const loginWithGoogle = async () => {
             subscriptionStatus: "free",
             subscriptionEnd: null,
             createdAt: serverTimestamp(),
-            downloads: 0
+            dailyDownloads: 0,
+            lastDownloadDate: null,
+            totalDownloads: 0
         });
     }
 
@@ -91,6 +114,13 @@ export const hasActiveSubscription = (userProfile) => {
         return endDate > new Date();
     }
     return false;
+};
+
+// Get all users (Admin only ideally)
+export const getAllUsers = async () => {
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 // Listen to auth state changes

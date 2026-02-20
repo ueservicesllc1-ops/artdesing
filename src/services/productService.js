@@ -40,30 +40,47 @@ export const getProduct = async (id) => {
 
 // Get products by category
 export const getProductsByCategory = async (category, pageSize = 20, lastDoc = null) => {
-    let q;
+    try {
+        let q;
+        if (lastDoc) {
+            q = query(
+                collection(db, COLLECTION),
+                where("category", "==", category),
+                orderBy("createdAt", "desc"),
+                startAfter(lastDoc),
+                limit(pageSize)
+            );
+        } else {
+            q = query(
+                collection(db, COLLECTION),
+                where("category", "==", category),
+                orderBy("createdAt", "desc"),
+                limit(pageSize)
+            );
+        }
 
-    if (lastDoc) {
-        q = query(
-            collection(db, COLLECTION),
-            where("category", "==", category),
-            orderBy("createdAt", "desc"),
-            startAfter(lastDoc),
-            limit(pageSize)
-        );
-    } else {
-        q = query(
-            collection(db, COLLECTION),
-            where("category", "==", category),
-            orderBy("createdAt", "desc"),
-            limit(pageSize)
-        );
+        const snapshot = await getDocs(q);
+        const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+        return { products, lastVisible };
+    } catch (error) {
+        // Fallback si falta el índice compuesto en Firestore
+        if (error.code === 'failed-precondition') {
+            console.warn("Falta índice compuesto en Firestore para esta consulta. Mostrando resultados sin orden específico.");
+            const q = query(
+                collection(db, COLLECTION),
+                where("category", "==", category),
+                limit(pageSize)
+            );
+            const snapshot = await getDocs(q);
+            return {
+                products: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+                lastVisible: null
+            };
+        }
+        throw error;
     }
-
-    const snapshot = await getDocs(q);
-    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
-
-    return { products, lastVisible };
 };
 
 // Get all products

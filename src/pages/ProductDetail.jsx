@@ -3,12 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getProduct, incrementDownloads } from '../services/productService';
 import { downloadFile } from '../services/storageService';
+import { updateUserDownloadStats } from '../services/authService';
 import { CATEGORIES } from '../config/backblaze';
 import { ArrowLeft, Download, Zap, Box, Palette, FileType, Calendar, Tag, Lock } from 'lucide-react';
 
 const ProductDetail = () => {
     const { id } = useParams();
-    const { isAuthenticated, isSubscribed } = useAuth();
+    const { isAuthenticated, isSubscribed, user, userProfile, refreshProfile } = useAuth();
     const navigate = useNavigate();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -28,14 +29,33 @@ const ProductDetail = () => {
         load();
     }, [id]);
 
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = userProfile?.lastDownloadDate === today;
+    const dailyCount = isToday ? (userProfile?.dailyDownloads || 0) : 0;
+    const canDownloadFree = !isSubscribed && isAuthenticated && dailyCount < 2;
+
     const handleDownload = async () => {
         if (!isAuthenticated) return navigate('/login');
-        if (!isSubscribed) return navigate('/subscription');
+
+        // If not subscribed, check daily limit (2 per day)
+        if (!isSubscribed) {
+            if (dailyCount >= 2) {
+                alert('Has alcanzado el límite de 2 descargas gratuitas por hoy. ¡Suscríbete para acceso ilimitado!');
+                return navigate('/subscription');
+            }
+        }
 
         setDownloading(true);
         try {
             await downloadFile(product.fileKey, product.fileName || product.name);
             await incrementDownloads(product.id);
+
+            // Update user stats if not admin
+            if (userProfile?.role !== 'admin') {
+                await updateUserDownloadStats(user.uid, userProfile);
+                await refreshProfile();
+            }
+
             setProduct(prev => ({ ...prev, downloads: (prev.downloads || 0) + 1 }));
         } catch (err) {
             console.error(err);
@@ -123,26 +143,43 @@ const ProductDetail = () => {
                     {!isAuthenticated ? (
                         <div>
                             <p style={{ color: 'var(--text-2)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                                Inicia sesion y suscribete para descargar este archivo
+                                Inicia sesión para descargar (2 gratis al día) o suscríbete para acceso total.
                             </p>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <Link to="/login"><button className="btn btn-accent">Iniciar sesion</button></Link>
+                                <Link to="/login"><button className="btn btn-accent">Iniciar sesión</button></Link>
                                 <Link to="/register"><button className="btn btn-ghost">Crear cuenta</button></Link>
                             </div>
                         </div>
-                    ) : !isSubscribed ? (
-                        <div>
-                            <p style={{ color: 'var(--text-2)', fontSize: '0.85rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <Lock size={14} /> Necesitas una suscripcion activa para descargar
-                            </p>
-                            <Link to="/subscription"><button className="btn btn-accent btn-lg">Ver planes</button></Link>
-                        </div>
-                    ) : (
+                    ) : isSubscribed ? (
                         <button className="btn btn-accent btn-lg" onClick={handleDownload} disabled={downloading}
                             style={{ width: '100%' }}>
                             <Download size={18} />
-                            {downloading ? 'Descargando...' : 'Descargar archivo'}
+                            {downloading ? 'Descargando...' : 'Descargar archivo (Ilimitado)'}
                         </button>
+                    ) : (
+                        <div>
+                            <div className="mb-2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-2)', fontSize: '0.85rem' }}>Descargas gratis hoy:</span>
+                                <span style={{ fontWeight: 700, color: dailyCount >= 2 ? 'var(--danger)' : 'var(--accent)' }}>
+                                    {dailyCount} / 2
+                                </span>
+                            </div>
+                            <button
+                                className={`btn btn-lg ${dailyCount >= 2 ? 'btn-ghost' : 'btn-accent'}`}
+                                onClick={handleDownload}
+                                disabled={downloading}
+                                style={{ width: '100%' }}
+                            >
+                                <Download size={18} />
+                                {downloading ? 'Descargando...' : dailyCount >= 2 ? 'Límite alcanzado' : 'Descarga gratuita'}
+                            </button>
+                            {dailyCount >= 2 && (
+                                <p style={{ color: 'var(--text-3)', fontSize: '0.75rem', marginTop: '0.75rem', textAlign: 'center' }}>
+                                    ¡Suscríbete para quitar este límite!
+                                    <Link to="/subscription" style={{ color: 'var(--accent)', marginLeft: '5px', fontWeight: 600 }}>Ver planes</Link>
+                                </p>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

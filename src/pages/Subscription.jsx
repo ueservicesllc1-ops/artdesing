@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Check, Crown, Infinity, Zap, Shield } from 'lucide-react';
+import { Check, Crown, Infinity, Zap, Shield, X } from 'lucide-react';
 
 const Subscription = () => {
     const { isAuthenticated, isSubscribed } = useAuth();
@@ -18,45 +18,70 @@ const Subscription = () => {
                 </div>
             )}
 
-            <div className="pricing-card">
-                <div className="pricing-label">
-                    <Crown size={12} /> PREMIUM
-                </div>
+            <div className="pricing-grid">
+                {[
+                    { name: 'Diario', price: '1.99', interval: '1 día', label: 'Básico', popular: false },
+                    { name: 'Semanal', price: '3.99', interval: '1 semana', label: 'Plus', popular: false },
+                    { name: 'Mensual', price: '6.99', interval: '1 mes', label: 'Recomendado', popular: true },
+                    { name: 'Anual', price: '11.99', interval: '1 año', label: 'Ahorro', popular: false },
+                    { name: 'De por Vida', price: '15.99', interval: 'Ilimitado', label: 'Ultimate', popular: false }
+                ].map((plan, i) => (
+                    <div key={i} className={`pricing-card ${plan.popular ? 'popular' : ''}`} style={plan.popular ? { borderColor: 'var(--accent)', transform: 'scale(1.02)' } : {}}>
+                        <div className="pricing-label">
+                            {plan.name === 'De por Vida' ? <Infinity size={12} /> : <Zap size={12} />} {plan.label}
+                        </div>
 
-                <div className="price">
-                    $9.99 <span>/ mes</span>
-                </div>
+                        <div className="price">
+                            ${plan.price} <span>/ {plan.interval}</span>
+                        </div>
 
-                <p style={{ color: 'var(--text-2)', fontSize: '0.875rem' }}>
-                    Todo lo que necesitas para tus proyectos
-                </p>
+                        <p style={{ color: 'var(--text-2)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            {plan.name === 'De por Vida' ? 'Acceso total para siempre' : 'Sin límites de descarga'}
+                        </p>
 
-                <ul className="pricing-features">
-                    <li><span className="check"><Check size={16} /></span> Descargas ilimitadas de todos los archivos</li>
-                    <li><span className="check"><Check size={16} /></span> Corte laser, impresion 3D y sublimacion</li>
-                    <li><span className="check"><Check size={16} /></span> Nuevos disenos cada semana</li>
-                    <li><span className="check"><Check size={16} /></span> Formatos profesionales (SVG, STL, PNG, DXF)</li>
-                    <li><span className="check"><Check size={16} /></span> Soporte prioritario</li>
-                    <li><span className="check"><Check size={16} /></span> Cancela cuando quieras</li>
-                </ul>
+                        <ul className="pricing-features" style={{ marginBottom: '2rem' }}>
+                            <li><span className="check"><Check size={16} /></span> Descargas ilimitadas</li>
+                            <li><span className="check"><Check size={16} /></span> Todo el catálogo</li>
+                            <li><span className="check"><Check size={16} /></span> Nuevos lanzamientos</li>
+                            <li style={(plan.name === 'Diario' || plan.name === 'Semanal') ? { opacity: 0.5 } : {}}>
+                                <span className="check">
+                                    {(plan.name === 'Diario' || plan.name === 'Semanal') ? <X size={16} style={{ color: 'var(--text-3)' }} /> : <Check size={16} />}
+                                </span>
+                                Diseños VIP
+                            </li>
+                            <li style={(plan.name === 'Diario' || plan.name === 'Semanal') ? { opacity: 0.5 } : {}}>
+                                <span className="check">
+                                    {(plan.name === 'Diario' || plan.name === 'Semanal') ? <X size={16} style={{ color: 'var(--text-3)' }} /> : <Check size={16} />}
+                                </span>
+                                Soporte 24/7
+                            </li>
+                            <li style={(plan.name === 'Diario' || plan.name === 'Semanal' || plan.name === 'Mensual') ? { opacity: 0.5 } : {}}>
+                                <span className="check">
+                                    {(plan.name === 'Diario' || plan.name === 'Semanal' || plan.name === 'Mensual') ? <X size={16} style={{ color: 'var(--text-3)' }} /> : <Check size={16} />}
+                                </span>
+                                Acceso a la comunidad
+                            </li>
+                        </ul>
 
-                {!isAuthenticated ? (
-                    <Link to="/register">
-                        <button className="btn btn-accent btn-lg" style={{ width: '100%' }}>
-                            Crear cuenta para suscribirte
-                        </button>
-                    </Link>
-                ) : !isSubscribed ? (
-                    <button className="btn btn-accent btn-lg" style={{ width: '100%' }}
-                        onClick={() => alert('Contacta al administrador para activar tu suscripcion.')}
-                    >
-                        <Crown size={16} /> Activar suscripcion
-                    </button>
-                ) : (
-                    <button className="btn btn-ghost btn-lg" style={{ width: '100%' }} disabled>
-                        Suscripcion activa
-                    </button>
-                )}
+                        {!isAuthenticated ? (
+                            <Link to="/register">
+                                <button className="btn btn-accent" style={{ width: '100%' }}>
+                                    Suscribirse
+                                </button>
+                            </Link>
+                        ) : !isSubscribed ? (
+                            <button className="btn btn-accent" style={{ width: '100%' }}
+                                onClick={() => alert('Contacta al administrador para activar tu plan ' + plan.name)}
+                            >
+                                Seleccionar {plan.name}
+                            </button>
+                        ) : (
+                            <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
+                                Plan Actual
+                            </button>
+                        )}
+                    </div>
+                ))}
             </div>
 
             <div className="steps-grid" style={{ marginTop: '4rem' }}>

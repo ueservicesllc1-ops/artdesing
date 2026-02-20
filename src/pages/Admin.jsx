@@ -1,26 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Upload, Plus, Trash2, Image, FileUp, X, Package } from 'lucide-react';
+import { Upload, Plus, Trash2, Image, FileUp, X, Package, Users, LayoutGrid, ChevronRight, User, Shield } from 'lucide-react';
 import { createProduct, getAllProducts, deleteProduct } from '../services/productService';
 import { uploadFile, deleteFile } from '../services/storageService';
+import { getAllUsers } from '../services/authService';
 import { CATEGORIES } from '../config/backblaze';
 
 const Admin = () => {
-    const { isAdmin, loading: authLoading } = useAuth();
+    const { user, isAdmin, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [pinInput, setPinInput] = useState('');
+    const [activeSection, setActiveSection] = useState('upload'); // categories, upload, users
     const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showForm, setShowForm] = useState(false);
-    const [dragOver, setDragOver] = useState(false);
 
     const [form, setForm] = useState({
         name: '',
         description: '',
         category: 'laser',
         tags: '',
-        fileType: '',
+        fileType: 'SVG',
     });
     const [imageFile, setImageFile] = useState(null);
     const [designFile, setDesignFile] = useState(null);
@@ -29,22 +34,37 @@ const Admin = () => {
     const imageInputRef = useRef(null);
     const fileInputRef = useRef(null);
 
-    useEffect(() => {
-        if (!authLoading && !isAdmin) {
-            navigate('/');
-            return;
-        }
-        if (isAdmin) {
-            loadProducts();
-        }
-    }, [isAdmin, authLoading]);
+    const PIN_SECRET = '1619';
+    const FILE_FORMATS = ['STL', 'PNG', 'SVG', 'CDR', 'AI', 'DXF', 'PDF', 'OBJ', 'JPG'];
 
-    const loadProducts = async () => {
+    useEffect(() => {
+        if (isAuthorized) {
+            loadInitialData();
+        }
+    }, [isAuthorized]);
+
+    const handlePinSubmit = (e) => {
+        e.preventDefault();
+        if (pinInput === PIN_SECRET) {
+            setIsAuthorized(true);
+        } else {
+            alert('PIN Incorrecto');
+            setPinInput('');
+        }
+    };
+
+    const loadInitialData = async () => {
+        console.log("Cargando datos. Auth User:", isAdmin ? "Admin" : "Standard", "isAuthorized:", isAuthorized);
+        setLoading(true);
         try {
-            const prods = await getAllProducts(100);
+            const [prods, allUsers] = await Promise.all([
+                getAllProducts(100).catch(e => { console.error("Error prods:", e); return []; }),
+                getAllUsers().catch(e => { console.error("Error users:", e); return []; })
+            ]);
             setProducts(prods);
+            setUsers(allUsers);
         } catch (error) {
-            console.error('Error loading products:', error);
+            console.error('Error loading admin data:', error);
         }
         setLoading(false);
     };
@@ -64,14 +84,16 @@ const Admin = () => {
         if (file) {
             setDesignFile(file);
             const ext = file.name.split('.').pop().toUpperCase();
-            setForm(prev => ({ ...prev, fileType: ext }));
+            if (FILE_FORMATS.includes(ext)) {
+                setForm(prev => ({ ...prev, fileType: ext }));
+            }
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!imageFile || !designFile) {
-            alert('Selecciona una imagen de preview y el archivo de diseno');
+            alert('Selecciona una imagen de preview y el archivo de diseño');
             return;
         }
 
@@ -101,26 +123,27 @@ const Admin = () => {
                 fileUrl: fileResult.url,
                 fileKey: filePath,
                 fileName: designFile.name,
+                createdAt: new Date()
             };
 
             const newProduct = await createProduct(productData);
             setProducts(prev => [newProduct, ...prev]);
 
-            setForm({ name: '', description: '', category: 'laser', tags: '', fileType: '' });
+            setForm({ name: '', description: '', category: 'laser', tags: '', fileType: 'SVG' });
             setImageFile(null);
             setDesignFile(null);
             setImagePreview(null);
             setShowForm(false);
-            alert('Producto creado exitosamente');
+            alert('Producto publicado exitosamente');
         } catch (error) {
             console.error('Error creating product:', error);
-            alert('Error al crear el producto: ' + error.message);
+            alert('Error de permisos o conexión: ' + error.message);
         }
         setUploading(false);
     };
 
     const handleDelete = async (product) => {
-        if (!confirm(`Eliminar "${product.name}"?`)) return;
+        if (!confirm(`¿Eliminar "${product.name}"?`)) return;
         try {
             if (product.imageKey) await deleteFile(product.imageKey).catch(() => { });
             if (product.fileKey) await deleteFile(product.fileKey).catch(() => { });
@@ -132,6 +155,8 @@ const Admin = () => {
         }
     };
 
+    const isGoogleUser = user?.providerData?.some(p => p.providerId === 'google.com');
+
     if (authLoading) {
         return (
             <div className="page-content">
@@ -140,267 +165,189 @@ const Admin = () => {
         );
     }
 
-    return (
-        <div className="page-content fade-in">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div className="section-header" style={{ marginBottom: 0 }}>
-                    <h2>Administracion</h2>
-                    <p>Gestiona productos y archivos de diseno</p>
-                </div>
-                <button className="btn btn-accent" onClick={() => setShowForm(!showForm)}>
-                    {showForm ? <><X size={18} /> Cerrar</> : <><Plus size={18} /> Nuevo</>}
-                </button>
-            </div>
-
-            {/* Stats */}
-            <div className="dashboard-stats">
-                <div className="stat-card">
-                    <div className="stat-label">Total</div>
-                    <div className="stat-value">{products.length}</div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-label">Corte Laser</div>
-                    <div className="stat-value" style={{ color: 'var(--laser)' }}>
-                        {products.filter(p => p.category === 'laser').length}
+    if (!isAuthorized) {
+        if (!user) {
+            return (
+                <div className="page-content fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+                    <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2.5rem', textAlign: 'center' }}>
+                        <Shield size={48} style={{ color: 'var(--text-3)', marginBottom: '1.5rem', margin: '0 auto' }} />
+                        <h2 style={{ fontFamily: 'var(--font-display)', marginTop: '1.5rem' }}>Acceso Restringido</h2>
+                        <p style={{ color: 'var(--text-2)', margin: '1rem 0 2rem' }}>Debes iniciar sesión para intentar acceder al panel.</p>
+                        <button className="btn btn-accent btn-lg" style={{ width: '100%' }} onClick={() => navigate('/login')}>
+                            Ir a Iniciar Sesión
+                        </button>
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-label">Impresion 3D</div>
-                    <div className="stat-value" style={{ color: 'var(--printing3d)' }}>
-                        {products.filter(p => p.category === 'printing3d').length}
+            );
+        }
+
+        if (!isGoogleUser) {
+            return (
+                <div className="page-content fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+                    <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2.5rem', textAlign: 'center' }}>
+                        <Shield size={48} style={{ color: 'var(--danger)', marginBottom: '1.5rem', margin: '0 auto' }} />
+                        <h2 style={{ fontFamily: 'var(--font-display)', marginTop: '1.5rem' }}>Acceso no Autorizado</h2>
+                        <p style={{ color: 'var(--text-2)', margin: '1rem 0 2rem' }}>Solo los usuarios autenticados con <strong>Google</strong> pueden intentar ingresar al panel administrativo.</p>
+                        <button className="btn btn-sm" style={{ width: '100%' }} onClick={() => navigate('/')}>
+                            Volver al Inicio
+                        </button>
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-label">Sublimacion</div>
-                    <div className="stat-value" style={{ color: 'var(--sublimation)' }}>
-                        {products.filter(p => p.category === 'sublimation').length}
+            );
+        }
+
+        return (
+            <div className="pin-entry-container fade-in">
+                <div className="pin-card">
+                    <div className="pin-icon-wrapper">
+                        <Shield size={40} />
                     </div>
-                </div>
-            </div>
+                    <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '0.5rem', fontSize: '1.75rem' }}>Verificación de PIN</h2>
+                    <p style={{ color: 'var(--text-2)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>Usuario verificado: <strong>{user.displayName}</strong></p>
 
-            {/* Upload Form */}
-            {showForm && (
-                <div className="card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: '1.5rem', letterSpacing: '-0.02em' }}>
-                        Nuevo producto
-                    </h3>
-
-                    <form onSubmit={handleSubmit}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div className="form-group">
-                                <label>Nombre</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Ej: Caja decorativa hexagonal"
-                                    value={form.name}
-                                    onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Categoria</label>
-                                <select
-                                    className="form-input"
-                                    value={form.category}
-                                    onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                                >
-                                    {Object.entries(CATEGORIES).map(([key, cat]) => (
-                                        <option key={key} value={key}>{cat.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label>Descripcion</label>
-                            <textarea
-                                className="form-input"
-                                placeholder="Describe el producto..."
-                                value={form.description}
-                                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                                required
-                            />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div className="form-group">
-                                <label>Etiquetas (separadas por coma)</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="caja, decoracion, regalo"
-                                    value={form.tags}
-                                    onChange={(e) => setForm(prev => ({ ...prev, tags: e.target.value }))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Tipo de archivo</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="SVG, STL, PNG..."
-                                    value={form.fileType}
-                                    onChange={(e) => setForm(prev => ({ ...prev, fileType: e.target.value }))}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                            <div>
-                                <label style={{ display: 'block', fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.35rem', color: 'var(--text-1)' }}>
-                                    Imagen de preview
-                                </label>
-                                <div
-                                    className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
-                                    onClick={() => imageInputRef.current?.click()}
-                                    style={{ padding: '1.5rem' }}
-                                >
-                                    {imagePreview ? (
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <img src={imagePreview} alt="Preview" style={{ maxHeight: '120px', borderRadius: 'var(--radius-s)' }} />
-                                            <button
-                                                type="button"
-                                                className="btn btn-danger btn-sm"
-                                                style={{ position: 'absolute', top: -8, right: -8, width: 24, height: 24, padding: 0, borderRadius: '50%' }}
-                                                onClick={(e) => { e.stopPropagation(); setImageFile(null); setImagePreview(null); }}
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Image size={32} style={{ color: 'var(--text-3)', marginBottom: '0.5rem' }} />
-                                            <p>Arrastra o haz clic para subir imagen</p>
-                                        </>
-                                    )}
-                                    <input
-                                        ref={imageInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageSelect}
-                                        style={{ display: 'none' }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.35rem', color: 'var(--text-1)' }}>
-                                    Archivo de diseno
-                                </label>
-                                <div
-                                    className="upload-zone"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    style={{ padding: '1.5rem' }}
-                                >
-                                    {designFile ? (
-                                        <div>
-                                            <FileUp size={32} style={{ color: 'var(--accent)', marginBottom: '0.5rem' }} />
-                                            <p style={{ fontSize: '0.85rem', color: 'var(--text-0)' }}>{designFile.name}</p>
-                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>
-                                                {(designFile.size / 1024).toFixed(1)} KB
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <FileUp size={32} style={{ color: 'var(--text-3)', marginBottom: '0.5rem' }} />
-                                            <p>SVG, STL, PNG, DXF, OBJ...</p>
-                                        </>
-                                    )}
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        onChange={handleDesignFileSelect}
-                                        style={{ display: 'none' }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <button className="btn btn-accent btn-lg" style={{ width: '100%' }} disabled={uploading}>
-                            {uploading ? (
-                                <><div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }}></div> Subiendo...</>
-                            ) : (
-                                <><Upload size={18} /> Publicar</>
-                            )}
+                    <form onSubmit={handlePinSubmit}>
+                        <input
+                            type="password"
+                            className="pin-input"
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value)}
+                            placeholder="****"
+                            maxLength={4}
+                            autoFocus
+                            required
+                        />
+                        <button className="btn btn-accent btn-lg" style={{ width: '100%', height: '56px' }}>
+                            Desbloquear Panel
                         </button>
                     </form>
                 </div>
-            )}
+            </div>
+        );
+    }
 
-            {/* Products Table */}
-            <div className="card" style={{ overflow: 'hidden' }}>
-                <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border)' }}>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700 }}>
-                        <Package size={16} style={{ marginRight: 6 }} /> Productos ({products.length})
-                    </h3>
+    if (loading) {
+        return (
+            <div className="page-content">
+                <div className="loading-container"><div className="spinner"></div></div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="admin-layout fade-in">
+            <aside className="admin-sidebar">
+                <div style={{ padding: '0 0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--accent)', color: 'black', padding: '0.5rem', borderRadius: '12px' }}>
+                        <Shield size={20} />
+                    </div>
+                    <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Admin Panel</span>
                 </div>
 
-                {loading ? (
-                    <div className="loading-container" style={{ minHeight: 200 }}>
-                        <div className="spinner"></div>
-                    </div>
-                ) : products.length === 0 ? (
-                    <div className="empty-state" style={{ padding: '3rem' }}>
-                        <h3>Sin productos</h3>
-                        <p>Agrega tu primer producto con el boton de arriba</p>
-                    </div>
-                ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                    <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', fontSize: '0.7rem', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Producto</th>
-                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.7rem', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Categoria</th>
-                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.7rem', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Formato</th>
-                                    <th style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Descargas</th>
-                                    <th style={{ padding: '0.75rem 1.25rem', textAlign: 'right', fontSize: '0.7rem', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {products.map(product => {
-                                    const cat = CATEGORIES[product.category];
-                                    return (
-                                        <tr key={product.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                            <td style={{ padding: '0.75rem 1.25rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-s)', overflow: 'hidden', background: 'var(--bg-2)', flexShrink: 0 }}>
-                                                        {product.imageUrl && <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                                                    </div>
-                                                    <div>
-                                                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{product.name}</div>
-                                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>{product.fileSize || ''}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td style={{ padding: '0.75rem' }}>
-                                                <span className={`card-badge ${product.category}`} style={{ position: 'static' }}>
-                                                    {cat?.name || product.category}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '0.75rem', color: 'var(--text-1)', fontSize: '0.85rem' }}>
-                                                {product.fileType || '-'}
-                                            </td>
-                                            <td style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.85rem' }}>
-                                                {product.downloads || 0}
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right' }}>
-                                                <button
-                                                    className="btn btn-danger btn-sm"
-                                                    onClick={() => handleDelete(product)}
-                                                    title="Eliminar"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                <button className={`admin-nav-item ${activeSection === 'categories' ? 'active' : ''}`} onClick={() => setActiveSection('categories')}>
+                    <LayoutGrid size={20} /> Categorías
+                </button>
+                <button className={`admin-nav-item ${activeSection === 'upload' ? 'active' : ''}`} onClick={() => setActiveSection('upload')}>
+                    <FileUp size={20} /> Subir archivos
+                </button>
+                <button className={`admin-nav-item ${activeSection === 'users' ? 'active' : ''}`} onClick={() => setActiveSection('users')}>
+                    <Users size={20} /> Usuarios
+                </button>
+
+                <div style={{ marginTop: 'auto', padding: '1rem' }}>
+                    <button className="btn btn-sm" style={{ width: '100%', opacity: 0.6 }} onClick={() => navigate('/')}>Volver al Sitio</button>
+                </div>
+            </aside>
+
+            <main className="admin-main">
+                {activeSection === 'categories' && (
+                    <div className="fade-in">
+                        <div className="admin-header"><div className="admin-title-group"><h2>Configuración de Categorías</h2><p>Estructura de carpetas y formatos permitidos</p></div></div>
+                        <div className="admin-grid">
+                            {Object.entries(CATEGORIES).map(([key, cat]) => (
+                                <div key={key} className="admin-card">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                                        <div style={{ width: 56, height: 56, borderRadius: '16px', background: cat.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Package size={28} /></div>
+                                        <div><h4 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{cat.name}</h4><code style={{ fontSize: '0.8rem', color: 'var(--accent)' }}>{cat.folder}</code></div>
+                                    </div>
+                                    <p style={{ fontSize: '0.95rem', color: 'var(--text-2)', marginBottom: '1.5rem' }}>{cat.description}</p>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+                                        {cat.extensions.map(ext => (<span key={ext} style={{ fontSize: '0.75rem', background: 'var(--bg-3)', padding: '0.3rem 0.6rem', borderRadius: '8px' }}>{ext}</span>))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
-            </div>
+
+                {activeSection === 'upload' && (
+                    <div className="fade-in">
+                        <div className="admin-header">
+                            <div className="admin-title-group"><h2>Gestión de Biblioteca</h2><p>Añade nuevos recursos o elimina contenido</p></div>
+                            <button className="btn btn-accent btn-lg" onClick={() => setShowForm(!showForm)}>{showForm ? <><X size={18} /> Cancelar</> : <><Plus size={18} /> Nuevo Recurso</>}</button>
+                        </div>
+
+                        {showForm && (
+                            <div className="admin-card" style={{ marginBottom: '3rem', maxWidth: '800px', border: '2px solid var(--accent-dim)' }}>
+                                <form onSubmit={handleSubmit}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                        <div className="form-group"><label>Nombre Comercial</label><input type="text" className="form-input" placeholder="Nombre del diseño" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} required /></div>
+                                        <div className="form-group"><label>Categoría Destino</label><select className="form-input" value={form.category} onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}>{Object.entries(CATEGORIES).map(([key, cat]) => (<option key={key} value={key}>{cat.name}</option>))}</select></div>
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1.5rem' }}><label>Descripción</label><textarea className="form-input" placeholder="Detalles..." value={form.description} onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))} style={{ height: '100px' }} required /></div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                                        <div className="upload-zone" onClick={() => imageInputRef.current?.click()}>
+                                            {imagePreview ? <img src={imagePreview} alt="Preview" style={{ height: '80px' }} /> : <><Image size={32} /><p>Subir Miniatura</p></>}
+                                            <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
+                                        </div>
+                                        <div className="upload-zone" onClick={() => fileInputRef.current?.click()}>
+                                            {designFile ? <p>{designFile.name}</p> : <><FileUp size={32} /><p>Subir Archivo Final</p></>}
+                                            <input ref={fileInputRef} type="file" onChange={handleDesignFileSelect} style={{ display: 'none' }} />
+                                        </div>
+                                    </div>
+                                    <button className="btn btn-accent btn-lg" style={{ width: '100%' }} disabled={uploading}>{uploading ? 'Subiendo...' : 'Publicar Producto'}</button>
+                                </form>
+                            </div>
+                        )}
+
+                        <div className="user-table-container">
+                            <table className="user-table">
+                                <thead><tr><th>Producto</th><th>Categoría</th><th>Formato</th><th style={{ textAlign: 'right' }}>Gestión</th></tr></thead>
+                                <tbody>
+                                    {products.map(product => (
+                                        <tr key={product.id}>
+                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}><img src={product.imageUrl} style={{ width: 44, height: 44, borderRadius: '10px', objectFit: 'cover' }} /><div><span style={{ fontWeight: 700 }}>{product.name}</span></div></div></td>
+                                            <td>{CATEGORIES[product.category]?.name || product.category}</td>
+                                            <td><span style={{ fontSize: '0.75rem', background: 'var(--bg-3)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{product.fileType}</span></td>
+                                            <td style={{ textAlign: 'right' }}><button className="btn btn-danger btn-sm" onClick={() => handleDelete(product)}><Trash2 size={16} /></button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeSection === 'users' && (
+                    <div className="fade-in">
+                        <div className="admin-header"><div className="admin-title-group"><h2>Base de Usuarios</h2><p>Control de acceso y suscripciones</p></div></div>
+                        <div className="user-table-container">
+                            <table className="user-table">
+                                <thead><tr><th>Usuario</th><th>Email</th><th>Permisos</th><th>Membresía</th></tr></thead>
+                                <tbody>
+                                    {users.map(u => (
+                                        <tr key={u.id}>
+                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}><div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={18} /></div><span>{u.displayName || 'Invitado'}</span></div></td>
+                                            <td>{u.email || 'N/A'}</td>
+                                            <td><span className={`role-badge ${u.role === 'admin' ? 'admin' : 'user'}`}>{u.role || 'user'}</span></td>
+                                            <td><div className="status-indicator"><div className={`status-dot ${u.subscriptionStatus === 'active' ? 'active' : 'inactive'}`}></div><span>{u.subscriptionStatus === 'active' ? 'Premium' : 'Básico'}</span></div></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </main>
         </div>
     );
 };
