@@ -8,7 +8,7 @@ import {
     signInWithPopup,
     sendPasswordResetEmail
 } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, orderBy, getDocs, Timestamp } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 
 const googleProvider = new GoogleAuthProvider();
@@ -126,4 +126,41 @@ export const getAllUsers = async () => {
 // Listen to auth state changes
 export const onAuthChange = (callback) => {
     return onAuthStateChanged(auth, callback);
+};
+
+// Update user subscription after payment
+export const updateUserSubscription = async (uid, planName) => {
+    const userRef = doc(db, "users", uid);
+    const now = new Date();
+    let endDate = new Date();
+
+    // Calcular fecha de fin según el plan
+    switch (planName) {
+        case 'Diario':
+            endDate.setDate(now.getDate() + 1);
+            break;
+        case 'Semanal':
+            endDate.setDate(now.getDate() + 7);
+            break;
+        case 'Mensual':
+            endDate.setMonth(now.getMonth() + 1);
+            break;
+        case 'Anual':
+            endDate.setFullYear(now.getFullYear() + 1);
+            break;
+        case 'De por Vida':
+            endDate.setFullYear(now.getFullYear() + 100);
+            break;
+        default:
+            endDate.setMonth(now.getMonth() + 1);
+    }
+
+    await updateDoc(userRef, {
+        subscriptionStatus: "active",
+        subscriptionPlan: planName,
+        subscriptionEnd: Timestamp.fromDate(endDate),
+        updatedAt: serverTimestamp()
+    });
+
+    return { status: "active", endDate };
 };

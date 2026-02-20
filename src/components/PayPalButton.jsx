@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const PayPalButton = ({ buttonId }) => {
+const PayPalButton = ({ buttonId, onApprove }) => {
     const containerRef = useRef(null);
     const renderedRef = useRef(false);
 
@@ -10,10 +10,13 @@ const PayPalButton = ({ buttonId }) => {
         if (window.paypal && window.paypal.HostedButtons) {
             window.paypal.HostedButtons({
                 hostedButtonId: buttonId,
+                onApprove: (data, actions) => {
+                    if (onApprove) onApprove(data, actions);
+                }
             }).render(`#${containerRef.current.id}`);
             renderedRef.current = true;
         }
-    }, [buttonId]);
+    }, [buttonId, onApprove]);
 
     return (
         <div

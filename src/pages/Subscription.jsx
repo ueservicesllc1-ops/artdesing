@@ -2,9 +2,21 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Check, Crown, Infinity, Zap, Shield, X } from 'lucide-react';
 import PayPalButton from '../components/PayPalButton';
+import { updateUserSubscription } from '../services/authService';
 
 const Subscription = () => {
-    const { isAuthenticated, isSubscribed } = useAuth();
+    const { user, isAuthenticated, isSubscribed, refreshProfile } = useAuth();
+
+    const handlePaymentSuccess = async (planName) => {
+        try {
+            await updateUserSubscription(user.uid, planName);
+            await refreshProfile();
+            alert(`¡Felicidades! Tu plan ${planName} ha sido activado exitosamente.`);
+        } catch (error) {
+            console.error('Error activating subscription:', error);
+            alert('El pago fue exitoso, pero hubo un error al activar tu cuenta. Por favor contacta a soporte.');
+        }
+    };
 
     return (
         <div className="page-content fade-in">
@@ -73,7 +85,10 @@ const Subscription = () => {
                         ) : !isSubscribed ? (
                             <div className="paypal-wrapper" style={{ width: '100%' }}>
                                 {plan.paypalId ? (
-                                    <PayPalButton buttonId={plan.paypalId} />
+                                    <PayPalButton
+                                        buttonId={plan.paypalId}
+                                        onApprove={() => handlePaymentSuccess(plan.name)}
+                                    />
                                 ) : (
                                     <button className="btn btn-accent" style={{ width: '100%' }}
                                         onClick={() => alert('Próximamente: Estamos configurando el botón de pago para el plan ' + plan.name)}
