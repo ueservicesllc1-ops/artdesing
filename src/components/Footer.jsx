@@ -25,6 +25,12 @@ const Footer = () => {
                     <Link to="/register">Registrarse</Link>
                     <Link to="/subscription">Planes</Link>
                 </div>
+
+                <div className="footer-col">
+                    <h4>Legal</h4>
+                    <Link to="/privacy">Privacidad</Link>
+                    <Link to="/terms">Términos</Link>
+                </div>
             </div>
 
             <div className="footer-bottom">

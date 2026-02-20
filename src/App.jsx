@@ -11,6 +11,8 @@ import Dashboard from './pages/Dashboard';
 import Subscription from './pages/Subscription';
 import Admin from './pages/Admin';
 import Budget from './pages/Budget';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
               <Route path="/subscription" element={<Subscription />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/budget" element={<Budget />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<Terms />} />
             </Routes>
           </main>
           <Footer />
