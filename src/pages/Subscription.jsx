@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Check, Crown, Infinity, Zap, Shield, X } from 'lucide-react';
+import PayPalButton from '../components/PayPalButton';
 
 const Subscription = () => {
     const { isAuthenticated, isSubscribed } = useAuth();
@@ -20,11 +21,11 @@ const Subscription = () => {
 
             <div className="pricing-grid">
                 {[
-                    { name: 'Diario', price: '1.99', interval: '1 día', label: 'Básico', popular: false },
-                    { name: 'Semanal', price: '3.99', interval: '1 semana', label: 'Plus', popular: false },
-                    { name: 'Mensual', price: '6.99', interval: '1 mes', label: 'Recomendado', popular: true },
-                    { name: 'Anual', price: '11.99', interval: '1 año', label: 'Ahorro', popular: false },
-                    { name: 'De por Vida', price: '15.99', interval: 'Ilimitado', label: 'Ultimate', popular: false }
+                    { name: 'Diario', price: '1.99', interval: '1 día', label: 'Básico', popular: false, paypalId: '9ZKR3HQQRXEWE' },
+                    { name: 'Semanal', price: '3.99', interval: '1 semana', label: 'Plus', popular: false, paypalId: 'UDMLRLLXCDXSA' },
+                    { name: 'Mensual', price: '6.99', interval: '1 mes', label: 'Recomendado', popular: true, paypalId: 'TJXS3YMJUDFGE' },
+                    { name: 'Anual', price: '11.99', interval: '1 año', label: 'Ahorro', popular: false, paypalId: 'LJ4C86JD2BFL2' },
+                    { name: 'De por Vida', price: '15.99', interval: 'Ilimitado', label: 'Ultimate', popular: false, paypalId: '6X9APZJL7BM76' }
                 ].map((plan, i) => (
                     <div key={i} className={`pricing-card ${plan.popular ? 'popular' : ''}`} style={plan.popular ? { borderColor: 'var(--accent)', transform: 'scale(1.02)' } : {}}>
                         <div className="pricing-label">
@@ -70,11 +71,17 @@ const Subscription = () => {
                                 </button>
                             </Link>
                         ) : !isSubscribed ? (
-                            <button className="btn btn-accent" style={{ width: '100%' }}
-                                onClick={() => alert('Contacta al administrador para activar tu plan ' + plan.name)}
-                            >
-                                Seleccionar {plan.name}
-                            </button>
+                            <div className="paypal-wrapper" style={{ width: '100%' }}>
+                                {plan.paypalId ? (
+                                    <PayPalButton buttonId={plan.paypalId} />
+                                ) : (
+                                    <button className="btn btn-accent" style={{ width: '100%' }}
+                                        onClick={() => alert('Próximamente: Estamos configurando el botón de pago para el plan ' + plan.name)}
+                                    >
+                                        Seleccionar {plan.name}
+                                    </button>
+                                )}
+                            </div>
                         ) : (
                             <button className="btn btn-ghost" style={{ width: '100%' }} disabled>
                                 Plan Actual
